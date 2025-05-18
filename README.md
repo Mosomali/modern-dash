@@ -17,6 +17,7 @@ A modern PHP dashboard application for managing cars, bookings, users, and drive
 2. Configure your database connection in `connection.php`
 3. Import the database schema (if available)
 4. Access the application through your web server
+5
 
 ## Requirements
 
