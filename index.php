@@ -1,5 +1,21 @@
 <?php include 'connection.php'; ?>
 <?php
+// Start session
+session_start();
+
+// Check if user is logged in
+if(!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+// Check if user has admin role for certain pages
+$admin_only_pages = ['settings', 'reports'];
+if(isset($_GET['view']) && in_array($_GET['view'], $admin_only_pages) && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin')) {
+    header("Location: index.php?access_denied=1");
+    exit;
+}
+
 $show_available_cars = isset($_GET['view']) && $_GET['view'] === 'available_cars';
 function active_link($view) {
     return (isset($_GET['view']) && $_GET['view'] === $view) ? 'bg-blue-100 text-blue-700' : '';
@@ -71,11 +87,37 @@ include 'functions.php';
             <div class="flex items-center gap-6">
                 
                 <div class="flex items-center gap-2 cursor-pointer group">
-                    <!-- // sawiro  -->
-                    <img src="22.jpg" alt="" class="w-9 h-9 rounded-full border-2 border-blue-200">
-                    <span class="font-semibold text-gray-700">Admin</span>
-                    <!-- <i class="fa-solid fa-chevron-down text-gray-400 group-hover:text-blue-600 transition"></i> -->
+                    <?php
+                    // Use profile image from session if available, otherwise use default
+                    $user_image = '22.jpg'; // Default image
+                    if(isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
+                        $user_image = $_SESSION['profile_image'];
+                    }
+                    // If not in session, try to get from database
+                    else if(isset($_SESSION['user_id'])) {
+                        $user_id = intval($_SESSION['user_id']);
+                        $profile_query = $conn->query("SELECT profile_image FROM users WHERE user_id = $user_id");
+                        if($profile_query && $profile_query->num_rows > 0) {
+                            $profile_data = $profile_query->fetch_assoc();
+                            if(!empty($profile_data['profile_image'])) {
+                                $user_image = $profile_data['profile_image'];
+                                // Update session
+                                $_SESSION['profile_image'] = $user_image;
+                            }
+                        }
+                    }
+                    ?>
+                    <img src="<?php echo htmlspecialchars($user_image); ?>" alt="" class="w-9 h-9 rounded-full border-2 border-blue-200 object-cover">
+                    <span class="font-semibold text-gray-700"><?php echo isset($_SESSION['full_name']) ? $_SESSION['full_name'] : 'User'; ?></span>
+                    <?php if(isset($_SESSION['role'])): ?>
+                    <span class="px-2 py-1 rounded text-xs font-semibold <?php echo $_SESSION['role'] == 'admin' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'; ?>">
+                        <?php echo $_SESSION['role']; ?>
+                    </span>
+                    <?php endif; ?>
                 </div>
+                <a href="logout.php" class="text-red-500 hover:text-red-700 ml-4">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </a>
             </div>
         </header>
         <?php

@@ -185,6 +185,51 @@ if (isset($_POST['delete_user_id'])) {
     exit;
 }
 
+// Function to handle image upload
+function upload_image($file_field) {
+    // Check if file was uploaded without errors
+    if(isset($_FILES[$file_field]) && $_FILES[$file_field]['error'] == 0) {
+        $allowed = array("jpg" => "image/jpg", "jpeg" => "image/jpeg", "gif" => "image/gif", "png" => "image/png");
+        $filename = $_FILES[$file_field]["name"];
+        $filetype = $_FILES[$file_field]["type"];
+        $filesize = $_FILES[$file_field]["size"];
+    
+        // Verify file extension
+        $ext = pathinfo($filename, PATHINFO_EXTENSION);
+        if(!array_key_exists($ext, $allowed)) {
+            return false;
+        }
+
+        // Verify file size - 5MB maximum
+        $maxsize = 5 * 1024 * 1024;
+        if($filesize > $maxsize) {
+            return false;
+        }
+    
+        // Verify MIME type of the file
+        if(in_array($filetype, $allowed)) {
+            // Check if the file exists before uploading it
+            $target_dir = "uploads/";
+            
+            // Create directory if it doesn't exist
+            if(!is_dir($target_dir)) {
+                mkdir($target_dir, 0777, true);
+            }
+            
+            // Create unique filename
+            $new_filename = uniqid() . "." . $ext;
+            $target_file = $target_dir . $new_filename;
+            
+            // Upload file
+            if(move_uploaded_file($_FILES[$file_field]["tmp_name"], $target_file)) {
+                return $target_file; // Return the path to the file
+            }
+        }
+    }
+    
+    return false;
+}
+
 // Handle Edit User form submission
 if (isset($_POST['edit_user_submit'])) {
     $user_id = intval($_POST['edit_user_id']);
@@ -192,7 +237,34 @@ if (isset($_POST['edit_user_submit'])) {
     $email = $conn->real_escape_string($_POST['email']);
     $phone_number = $conn->real_escape_string($_POST['phone_number']);
     $role = $conn->real_escape_string($_POST['role']);
-    $conn->query("UPDATE users SET full_name='$full_name', email='$email', phone_number='$phone_number', role='$role' WHERE user_id=$user_id");
+    
+    // Check if password field is filled
+    $password_update = "";
+    if(!empty($_POST['password'])) {
+        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $password_update = ", password='$password'";
+    }
+    
+    // Handle image upload
+    $image_update = "";
+    $image_path = upload_image("profile_image");
+    if($image_path) {
+        $image_update = ", profile_image='$image_path'";
+        
+        // Update session if user is updating their own profile
+        if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+            $_SESSION['profile_image'] = $image_path;
+        }
+    }
+    
+    $conn->query("UPDATE users SET full_name='$full_name', email='$email', phone_number='$phone_number', role='$role' $password_update $image_update WHERE user_id=$user_id");
+    
+    // Update session variables if user is updating their own profile
+    if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+        $_SESSION['full_name'] = $full_name;
+        $_SESSION['email'] = $email;
+    }
+    
     echo "<script>location.href='index.php?view=users';</script>";
     exit;
 }
@@ -214,7 +286,13 @@ if (isset($_POST['add_user_submit'])) {
     $phone_number = $conn->real_escape_string($_POST['phone_number']);
     $role = $conn->real_escape_string($_POST['role']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $conn->query("INSERT INTO users (full_name, email, phone_number, role, password, created_at) VALUES ('$full_name', '$email', '$phone_number', '$role', '$password', NOW())");
+    
+    // Handle image upload
+    $image_path = upload_image("profile_image");
+    $image_value = $image_path ? "'$image_path'" : "NULL";
+    
+    $conn->query("INSERT INTO users (full_name, email, phone_number, role, password, profile_image, created_at) 
+                  VALUES ('$full_name', '$email', '$phone_number', '$role', '$password', $image_value, NOW())");
     echo "<script>location.href='index.php?view=users';</script>";
     exit;
 } 

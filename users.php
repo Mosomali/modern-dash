@@ -7,7 +7,7 @@
             <a href="index.php?view=users&add_user=1" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition flex items-center gap-2"><i class="fa fa-plus"></i> Add User</a>
         </div>
         <?php if (isset($_GET['add_user'])): ?>
-        <form method="post" class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-6 rounded-xl shadow">
+        <form method="post" class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-6 rounded-xl shadow" enctype="multipart/form-data">
             <input type="text" name="full_name" placeholder="Full Name" required class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
             <input type="email" name="email" placeholder="Email" required class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
             <input type="tel" name="phone_number" placeholder="Phone Number" pattern="[0-9]+" title="Please enter numbers only" required class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
@@ -16,6 +16,12 @@
                 <option value="admin">Admin</option>
             </select>
             <input type="password" name="password" placeholder="Password" required class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
+            
+            <div class="flex flex-col">
+                <label class="mb-1 text-sm text-gray-600">Profile Image</label>
+                <input type="file" name="profile_image" accept="image/*" class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
+            </div>
+            
             <div class="col-span-full flex gap-3 mt-2">
                 <button type="submit" name="add_user_submit" class="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700 transition"><i class="fa fa-check"></i> Save</button>
                 <a href="index.php?view=users" class="px-4 py-2 rounded bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition"><i class="fa fa-times"></i> Cancel</a>
@@ -24,14 +30,14 @@
         <?php elseif (isset($_GET['edit_user'])): ?>
         <?php 
         $user_id = intval($_GET['edit_user']);
-        $user_query = $conn->query("SELECT user_id, full_name, email, phone_number, role, created_at FROM users WHERE user_id = $user_id");
+        $user_query = $conn->query("SELECT user_id, full_name, email, phone_number, role, created_at, profile_image FROM users WHERE user_id = $user_id");
         if ($user_query && $user_query->num_rows > 0):
             $user = $user_query->fetch_assoc();
         ?>
         <div class="mb-6">
             <a href="index.php?view=users" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold shadow hover:bg-gray-300 transition flex items-center gap-2 w-fit"><i class="fa fa-arrow-left"></i> Back to Users</a>
         </div>
-        <form method="post" class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-6 rounded-xl shadow">
+        <form method="post" class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-6 rounded-xl shadow" enctype="multipart/form-data">
             <div class="col-span-full mb-4">
                 <h3 class="text-xl font-bold text-blue-700 flex items-center gap-2"><i class="fa-solid fa-edit"></i> Edit User: <?php echo htmlspecialchars($user['full_name']); ?></h3>
             </div>
@@ -69,6 +75,18 @@
                 <input type="password" name="password" placeholder="New password" class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
             </div>
             
+            <div class="flex flex-col col-span-full">
+                <label class="mb-1 text-sm text-gray-600">Profile Image</label>
+                <?php if(!empty($user['profile_image'])): ?>
+                <div class="mb-3 flex items-center gap-4">
+                    <img src="<?php echo htmlspecialchars($user['profile_image']); ?>" alt="Profile" class="w-16 h-16 rounded-full object-cover border-2 border-blue-300">
+                    <span class="text-sm text-gray-600">Current image</span>
+                </div>
+                <?php endif; ?>
+                <input type="file" name="profile_image" accept="image/*" class="px-3 py-2 rounded border focus:ring-2 focus:ring-blue-400">
+                <p class="text-sm text-gray-500 mt-1">Leave empty to keep current image</p>
+            </div>
+            
             <div class="col-span-full flex gap-3 mt-6">
                 <input type="hidden" name="edit_user_id" value="<?php echo $user['user_id']; ?>">
                 <button type="submit" name="edit_user_submit" class="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700 transition"><i class="fa fa-check"></i> Save Changes</button>
@@ -85,7 +103,8 @@
             <table class="min-w-full text-left border-separate border-spacing-y-2">
                 <thead class="bg-blue-50">
                     <tr>
-                        <th class="py-3 px-4 rounded-l-xl font-bold">Full Name</th>
+                        <th class="py-3 px-4 rounded-l-xl font-bold">Image</th>
+                        <th class="py-3 px-4 font-bold">Full Name</th>
                         <th class="py-3 px-4 font-bold">Email</th>
                         <th class="py-3 px-4 font-bold">Phone</th>
                         <th class="py-3 px-4 font-bold">Role</th>
@@ -95,11 +114,20 @@
                 </thead>
                 <tbody>
                 <?php
-                $users = $conn->query("SELECT user_id, full_name, email, phone_number, role, created_at FROM users ORDER BY created_at DESC");
+                $users = $conn->query("SELECT user_id, full_name, email, phone_number, role, created_at, profile_image FROM users ORDER BY created_at DESC");
                 if ($users && $users->num_rows > 0):
                     $i = 0;
                     while($user = $users->fetch_assoc()): $i++; ?>
                     <tr class="<?php echo $i % 2 == 0 ? 'bg-blue-50' : 'bg-white'; ?> hover:bg-blue-100 transition">
+                        <td class="py-2 px-4">
+                            <?php if(!empty($user['profile_image'])): ?>
+                                <img src="<?php echo htmlspecialchars($user['profile_image']); ?>" alt="Profile" class="w-10 h-10 rounded-full object-cover border-2 border-blue-300">
+                            <?php else: ?>
+                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <i class="fa fa-user text-blue-400"></i>
+                                </div>
+                            <?php endif; ?>
+                        </td>
                         <td class="py-2 px-4 font-semibold text-blue-700"><a href="#" class="hover:underline"><?php echo htmlspecialchars($user['full_name']); ?></a></td>
                         <td class="py-2 px-4"><?php echo htmlspecialchars($user['email']); ?></td>
                         <td class="py-2 px-4"><?php echo htmlspecialchars($user['phone_number']); ?></td>
@@ -123,7 +151,7 @@
                     </tr>
                 <?php endwhile;
                 else: ?>
-                    <tr><td colspan="6" class="py-2 px-4 text-center">No users found</td></tr>
+                    <tr><td colspan="7" class="py-2 px-4 text-center">No users found</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>
